@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>제주 여행 플래너 v2.4 (안정화 버전)</title>
+    <title>제주 여행 플래너 v2.6</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=41ffb381e0c7d6b03dba5cb7564a234e&libraries=services"></script>
@@ -22,8 +22,16 @@
 
         .container { padding: 0 15px; }
 
+        /* 지도 동선 필터 */
+        .map-filter-container { background: white; padding: 12px; border-radius: 15px; margin-top: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
+        .map-filter-label { font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 8px; display: block; }
+        .radio-group { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+        .radio-group input[type="radio"] { display: none; }
+        .radio-group label { padding: 6px 14px; background: #f0f0f0; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: #666; transition: 0.2s; border: 1px solid transparent; }
+        .radio-group input[type="radio"]:checked + label { background: var(--secondary); color: white; font-weight: bold; border-color: var(--secondary); box-shadow: 0 2px 5px rgba(0,119,190,0.3); }
+
         /* 검색창 */
-        .search-container { background: white; padding: 12px; border-radius: 15px; margin-top: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .search-container { background: white; padding: 12px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .search-input-group { display: flex; gap: 8px; }
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 0.9rem; }
         button.search-btn { padding: 0 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
@@ -34,11 +42,11 @@
         .tab-bar { display: flex; gap: 8px; margin: 15px 0 10px 0; align-items: center; }
         .tab-label { font-size: 0.85rem; font-weight: bold; color: #555; }
         .tab-btn { padding: 6px 15px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; font-size: 0.8rem; font-weight: 500; transition: 0.2s; }
-        .tab-btn.active { background: var(--secondary); color: white; border-color: var(--secondary); }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
         /* 일정 카드 디자인 */
         .day-section { margin-bottom: 25px; }
-        .day-title { font-size: 1.1rem; font-weight: bold; color: var(--secondary); margin-bottom: 10px; border-left: 4px solid var(--secondary); padding-left: 8px; }
+        .day-title { font-size: 1.1rem; font-weight: bold; color: var(--secondary); margin-bottom: 10px; border-left: 4px solid var(--secondary); padding-left: 8px; display: flex; justify-content: space-between; align-items: center; }
         .schedule-list { list-style: none; padding: 0; margin: 0; }
         .schedule-card { background: white; margin-bottom: 10px; padding: 12px; border-radius: 12px; display: flex; align-items: flex-start; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.04); }
         
@@ -56,8 +64,30 @@
         .tips.alert { background-color: #FFEBEE; color: #C62828; border-left-color: #D32F2F; }
         
         .del-btn { background: #fff0f0; color: #ff4d4d; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-weight: bold; flex-shrink: 0; }
-        
-        #error-log { color: red; font-size: 0.8rem; padding: 10px; text-align: center; }
+
+        /* 커스텀 오버레이 (출발점 표시용) */
+        .custom-marker-label {
+            padding: 4px 8px;
+            background: white;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 800;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            top: -45px; /* 마커 위쪽으로 띄우기 */
+            white-space: nowrap;
+        }
+        /* 말풍선 꼬리 */
+        .custom-marker-label::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px 5px 0;
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
     </style>
 </head>
 <body>
@@ -71,21 +101,41 @@
 </div>
 
 <div class="container">
+    
+    <div class="map-filter-container">
+        <span class="map-filter-label">🗺️ 지도에 표시할 일정 보기</span>
+        <div class="radio-group">
+            <input type="radio" id="filter-all" name="map-filter" value="all" checked onchange="filterMapDay('all')">
+            <label for="filter-all">전체 일정</label>
+            
+            <input type="radio" id="filter-d1" name="map-filter" value="day1" onchange="filterMapDay('day1')">
+            <label for="filter-d1">1일차</label>
+            
+            <input type="radio" id="filter-d2" name="map-filter" value="day2" onchange="filterMapDay('day2')">
+            <label for="filter-d2">2일차</label>
+            
+            <input type="radio" id="filter-d3" name="map-filter" value="day3" onchange="filterMapDay('day3')">
+            <label for="filter-d3">3일차</label>
+            
+            <input type="radio" id="filter-d4" name="map-filter" value="day4" onchange="filterMapDay('day4')">
+            <label for="filter-d4">4일차</label>
+        </div>
+    </div>
+
     <div class="search-container">
         <div class="search-input-group">
-            <input type="text" id="keyword" placeholder="추가 장소 검색 (예: 제주 아쿠아플라넷)">
+            <input type="text" id="keyword" placeholder="추가 장소 검색 (예: 런던베이글)">
             <button class="search-btn" onclick="searchPlace()">검색</button>
         </div>
         <div id="search-results"></div>
     </div>
 
     <div class="tab-bar">
-        <span class="tab-label">📍 계획 선택:</span>
-        <button class="tab-btn active" onclick="changeOption('A')">A옵션</button>
-        <button class="tab-btn" onclick="changeOption('B')">B옵션</button>
+        <span class="tab-label">📍 세부 코스 옵션:</span>
+        <button class="tab-btn active" onclick="changeOption('A')">A안 (추천)</button>
+        <button class="tab-btn" onclick="changeOption('B')">B안 (대안)</button>
     </div>
 
-    <div id="error-log"></div>
     <div id="itinerary-container"></div>
 </div>
 
@@ -93,14 +143,18 @@
     let map, ps;
     let markers = [];
     let polylines = [];
+    let customOverlays = []; // 라벨 오버레이 관리 배열
     let currentOption = 'A';
+    let currentMapFilter = 'all';
     let isMapLoaded = false;
 
-    // 전체 일정 데이터
+    // 일차별 테마 색상 지정
+    const dayColors = { day1: '#FF8C00', day2: '#228B22', day3: '#0077BE', day4: '#800080' };
+
     const rawData = {
         day1: {
             common: [
-                { name: "제주공항 (블루렌트카)", searchName: "제주국제공항", time: "14:00", desc: "도착 및 렌터카 인수", tips: "테슬라 모델3 하이랜드 인수 / 짐 싣고 신속 이동" },
+                { name: "제주공항 (블루렌트카)", searchName: "제주국제공항 블루렌트카", time: "14:00", desc: "도착 및 렌터카 인수", tips: "테슬라 모델3 하이랜드 인수 / 짐 싣고 신속 이동" },
                 { name: "제주에가면", searchName: "제주에가면", time: "15:00", desc: "보말칼국수, 보말죽, 왕만두", tips: "⚠️ 브레이크타임(14:30~15:00) 확인 후 15시 맞춰 방문 추천. 아이 식사로 자극 없어 좋음." },
                 { name: "용꽈배기 & 커피파인더", searchName: "커피파인더", time: "16:00", desc: "이동 중 간식 픽업", tips: "⚠️ 주차 매우 어려움 (제주시청 인근). 동승자만 내려서 픽업하거나 공영주차장 필수." },
                 { name: "함덕해수욕장", searchName: "함덕해수욕장", time: "17:00", desc: "숙소 가는 길목, 노을 질 무렵 가벼운 모래 산책", tips: "" },
@@ -165,28 +219,21 @@
         else { wrapper.classList.remove('shrink'); }
     };
 
-    // 로딩 시: 에러가 나도 리스트는 무조건 먼저 그리도록 분리
     window.onload = function() {
         try {
-            // 1. UI 및 데이터 초기화 (지도가 없어도 일정표는 뜹니다)
             initData();
-
-            // 2. 카카오맵 객체 확인 및 초기화
             if (typeof kakao !== 'undefined' && kakao.maps) {
                 kakao.maps.load(function() {
                     const container = document.getElementById('kakao-map');
-                    container.innerHTML = ""; // 로딩 문구 제거
+                    container.innerHTML = ""; 
                     map = new kakao.maps.Map(container, { center: new kakao.maps.LatLng(33.38, 126.55), level: 10 });
                     ps = new kakao.maps.services.Places();
                     isMapLoaded = true;
-                    updateMap(); // 맵이 성공적으로 로드되면 선 긋기
+                    updateMap();
                 });
-            } else {
-                throw new Error("카카오맵 API를 불러오지 못했습니다.");
-            }
+            } else { throw new Error("API Load Fail"); }
         } catch (error) {
-            console.error(error);
-            document.getElementById('kakao-map').innerHTML = `지도를 불러올 수 없습니다.<br>GitHub Pages 도메인 등록을 확인해주세요.`;
+            document.getElementById('kakao-map').innerHTML = `지도를 불러올 수 없습니다.`;
         }
     };
 
@@ -206,18 +253,28 @@
         initData();
     }
 
+    function filterMapDay(dayFilter) {
+        currentMapFilter = dayFilter;
+        if(isMapLoaded) updateMap();
+    }
+
     function renderList() {
         const container = document.getElementById('itinerary-container');
         container.innerHTML = "";
         ['day1', 'day2', 'day3', 'day4'].forEach((day, dIdx) => {
             const section = document.createElement('div');
             section.className = 'day-section';
-            section.innerHTML = `<div class="day-title">${dIdx+1}일차</div><ul id="list-${day}" class="schedule-list"></ul>`;
+            
+            let dayColor = dayColors[day];
+            section.innerHTML = `
+                <div class="day-title" style="color: ${dayColor}; border-left-color: ${dayColor};">
+                    ${dIdx+1}일차 일정
+                </div>
+                <ul id="list-${day}" class="schedule-list"></ul>`;
             container.appendChild(section);
 
             const listEl = document.getElementById(`list-${day}`);
             
-            // 시간순 정렬하여 렌더링
             activePlan[day].sort((a,b) => (a.time > b.time ? 1 : -1)).forEach((item, iIdx) => {
                 const li = document.createElement('li');
                 li.className = 'schedule-card';
@@ -232,7 +289,7 @@
                 li.innerHTML = `
                     <div class="handle">☰</div>
                     <div class="time-col">
-                        <input type="text" class="time-input" value="${item.time}" onchange="updateTime('${day}', ${iIdx}, this.value)">
+                        <input type="text" class="time-input" value="${item.time}" style="color: ${dayColor};" onchange="updateTime('${day}', ${iIdx}, this.value)">
                     </div>
                     <div class="info">
                         <h4>${item.name}</h4>
@@ -243,7 +300,6 @@
                 listEl.appendChild(li);
             });
 
-            // 드래그 앤 드롭 안전 적용
             if (typeof Sortable !== 'undefined') {
                 new Sortable(listEl, {
                     handle: '.handle', animation: 150,
@@ -267,28 +323,59 @@
     async function updateMap() {
         if (!isMapLoaded) return;
         
+        // 기존 핀, 선, 커스텀 오버레이(라벨) 초기화
         markers.forEach(m => m.setMap(null));
         polylines.forEach(p => p.setMap(null));
-        markers = []; polylines = [];
-        const colors = ['#FF8C00', '#228B22', '#0077BE', '#800080'];
+        customOverlays.forEach(o => o.setMap(null));
+        markers = []; polylines = []; customOverlays = [];
         
-        for (let i = 0; i < 4; i++) {
-            const dayKey = `day${i+1}`;
+        let bounds = new kakao.maps.LatLngBounds();
+        let hasPoints = false;
+        
+        const daysToRender = currentMapFilter === 'all' ? ['day1', 'day2', 'day3', 'day4'] : [currentMapFilter];
+        
+        for (const dayKey of daysToRender) {
             const path = [];
+            let isFirstPoint = true; // 각 일차별 첫 번째 지점인지 확인
+            
             for (const item of activePlan[dayKey]) {
                 const query = item.searchName || item.name;
                 const coords = await getCoords(query);
                 if (coords) {
                     path.push(coords);
-                    const marker = new kakao.maps.Marker({ map: map, position: coords });
+                    
+                    const marker = new kakao.maps.Marker({ map: map, position: coords, title: item.name });
                     markers.push(marker);
+                    
+                    // 각 일차의 '첫 번째' 마커 위에 커스텀 라벨 달기
+                    if (isFirstPoint) {
+                        const dayNumber = dayKey.replace('day', ''); // '1', '2' 추출
+                        const labelContent = `<div class="custom-marker-label" style="color: ${dayColors[dayKey]}; border: 2px solid ${dayColors[dayKey]};">${dayNumber}일차 출발</div>`;
+                        
+                        const customOverlay = new kakao.maps.CustomOverlay({
+                            position: coords,
+                            content: labelContent,
+                            yAnchor: 1 // 마커 기준 위쪽 정렬
+                        });
+                        customOverlay.setMap(map);
+                        customOverlays.push(customOverlay); // 나중에 지우기 위해 배열에 저장
+                        
+                        isFirstPoint = false;
+                    }
+                    
+                    bounds.extend(coords);
+                    hasPoints = true;
                 }
             }
             if (path.length > 1) {
-                const poly = new kakao.maps.Polyline({ path: path, strokeWeight: 4, strokeColor: colors[i], strokeOpacity: 0.7 });
+                const poly = new kakao.maps.Polyline({ path: path, strokeWeight: 5, strokeColor: dayColors[dayKey], strokeOpacity: 0.8 });
                 poly.setMap(map);
                 polylines.push(poly);
             }
+        }
+        
+        if (hasPoints) {
+            map.setBounds(bounds);
         }
     }
 
@@ -304,7 +391,7 @@
     }
 
     function searchPlace() {
-        if(!isMapLoaded) { alert("지도가 로드되지 않아 검색할 수 없습니다."); return; }
+        if(!isMapLoaded) return;
         const k = document.getElementById('keyword').value;
         if(!k.trim()) return;
         ps.keywordSearch(k + " 제주", (data, status) => {
@@ -322,8 +409,9 @@
     }
 
     function addToList(name) { 
-        activePlan.day1.push({ name: name, searchName: name, time: "12:00", desc: "사용자 추가 일정", tips: "" }); 
-        initData(); // 옵션 합칠 때 충돌을 피하기 위해 리렌더링
+        const targetDay = currentMapFilter === 'all' ? 'day1' : currentMapFilter;
+        activePlan[targetDay].push({ name: name, searchName: name, time: "12:00", desc: "사용자 추가 일정", tips: "" }); 
+        initData(); 
         document.getElementById('keyword').value = ""; 
         document.getElementById('search-results').innerHTML = ""; 
     }
