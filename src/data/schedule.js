@@ -62,44 +62,99 @@ export const rawData = {
     }
 };
 
+import { initializeFirestorePlan, syncPlanToFirestore, loadPlanFromFirestore, subscribeToPlanChanges, restoreAdminPlan } from '../api/firebase.js';
+
 // Application State
 export let activePlan = { day1: [], day2: [], day3: [], day4: [] };
 export let dayOptions = { day1: 'A', day2: 'A', day3: 'A', day4: 'A' };
 
-export function initData(renderCallback, updateMapCallback) {
-    ['day1', 'day2', 'day3', 'day4'].forEach(day => {
-        let commonList = JSON.parse(JSON.stringify(rawData[day].common || []));
-        let currentOpt = dayOptions[day];
-        let optionList = JSON.parse(JSON.stringify(rawData[day][currentOpt] || []));
-        optionList.forEach(item => item.hasAlt = true);
+export async function initData(renderCallback, updateMapCallback) {
+    const savedData = await loadPlanFromFirestore();
+    let isNew = false;
 
-        let userAdded = (activePlan[day] || []).filter(item => item.desc === "사용자 추가 일정");
-        activePlan[day] = [...commonList, ...optionList, ...userAdded];
-    });
+    if (savedData && savedData.activePlan && savedData.dayOptions) {
+        activePlan = savedData.activePlan;
+        dayOptions = savedData.dayOptions;
+    } else {
+        ['day1', 'day2', 'day3', 'day4'].forEach(day => {
+            let commonList = JSON.parse(JSON.stringify(rawData[day].common || []));
+            let currentOpt = dayOptions[day];
+            let optionList = JSON.parse(JSON.stringify(rawData[day][currentOpt] || []));
+            optionList.forEach(item => item.hasAlt = true);
+
+            let userAdded = (activePlan[day] || []).filter(item => item.desc === "사용자 추가 일정");
+            activePlan[day] = [...commonList, ...optionList, ...userAdded];
+        });
+        isNew = true;
+    }
 
     if (renderCallback) renderCallback();
     if (updateMapCallback) updateMapCallback();
+
+    if (isNew) {
+        initializeFirestorePlan(activePlan, dayOptions);
+    }
+
+    // Subscribe to changes from others
+    subscribeToPlanChanges((newData) => {
+        if (newData && newData.activePlan && newData.dayOptions) {
+            activePlan = newData.activePlan;
+            dayOptions = newData.dayOptions;
+            if (renderCallback) renderCallback();
+            if (updateMapCallback) updateMapCallback();
+        }
+    });
+}
+
+export function pushSync() {
+    syncPlanToFirestore(activePlan, dayOptions);
 }
 
 export function changeDayOption(day, opt, renderCallback, updateMapCallback) {
     dayOptions[day] = opt;
-    initData(renderCallback, updateMapCallback);
+
+    let commonList = JSON.parse(JSON.stringify(rawData[day].common || []));
+    let optionList = JSON.parse(JSON.stringify(rawData[day][opt] || []));
+    optionList.forEach(item => item.hasAlt = true);
+
+    let userAdded = (activePlan[day] || []).filter(item => item.desc === "사용자 추가 일정");
+    activePlan[day] = [...commonList, ...optionList, ...userAdded];
+
+    if (renderCallback) renderCallback();
+    if (updateMapCallback) updateMapCallback();
+    pushSync();
 }
 
 export function updateTime(day, index, newTime, renderCallback, updateMapCallback) {
     activePlan[day][index].time = newTime;
     if (renderCallback) renderCallback();
     if (updateMapCallback) updateMapCallback();
+    pushSync();
 }
 
 export function deleteItem(day, index, renderCallback, updateMapCallback) {
     activePlan[day].splice(index, 1);
     if (renderCallback) renderCallback();
     if (updateMapCallback) updateMapCallback();
+    pushSync();
 }
 
 export function addToList(targetDay, time, name, renderCallback, updateMapCallback) {
     activePlan[targetDay].push({ name: name, searchName: name, time: time || "12:00", desc: "사용자 추가 일정", tips: "" });
     if (renderCallback) renderCallback();
     if (updateMapCallback) updateMapCallback();
+    pushSync();
+}
+
+export async function triggerAdminRestore(renderCallback, updateMapCallback) {
+    const restoredData = await restoreAdminPlan();
+    if (restoredData) {
+        activePlan = restoredData.activePlan;
+        dayOptions = restoredData.dayOptions;
+        if (renderCallback) renderCallback();
+        if (updateMapCallback) updateMapCallback();
+        alert("일정이 관리자 지정 초기 상태로 복구되었습니다!");
+    } else {
+        alert("복구에 실패했거나 백엔드에 초기 데이터가 없습니다.");
+    }
 }

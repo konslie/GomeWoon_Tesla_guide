@@ -1,6 +1,6 @@
 // src/ui/render.js
 
-import { activePlan, dayOptions, dayColors, changeDayOption, updateTime, deleteItem } from '../data/schedule.js';
+import { activePlan, dayOptions, dayColors, changeDayOption, updateTime, deleteItem, pushSync } from '../data/schedule.js';
 import { updateMap, isMapLoaded } from '../api/map.js';
 
 export function renderList() {
@@ -97,6 +97,7 @@ export function renderList() {
                     const movedItem = activePlan[dayKey].splice(evt.oldIndex, 1)[0];
                     activePlan[dayKey].splice(evt.newIndex, 0, movedItem);
                     if (isMapLoaded) updateMap();
+                    pushSync();
                 }
             });
         }
