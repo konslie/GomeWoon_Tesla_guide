@@ -21,23 +21,10 @@ export function renderList() {
                 <div class="day-title" style="color: ${dayColor}; border-left-color: ${dayColor};">
                     ${dIdx + 1}일차 일정
                 </div>
-                <div class="day-tabs">
-                    <button class="day-tab-btn ${optA_active}" data-day="${day}" data-opt="A" style="--theme-color: ${dayColor}">A안</button>
-                    <button class="day-tab-btn ${optB_active}" data-day="${day}" data-opt="B" style="--theme-color: ${dayColor}">B안</button>
-                </div>
             </div>
             <ul id="list-${day}" class="schedule-list"></ul>`;
 
         container.appendChild(section);
-
-        // Add Event Listeners for tabs
-        section.querySelectorAll('.day-tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const targetDay = e.target.getAttribute('data-day');
-                const targetOpt = e.target.getAttribute('data-opt');
-                changeDayOption(targetDay, targetOpt, renderList, updateMap);
-            });
-        });
 
         const listEl = document.getElementById(`list-${day}`);
 
@@ -53,7 +40,9 @@ export function renderList() {
                 tipsHtml = `<div class="tips ${isAlert ? 'alert' : ''}">${item.tips}</div>`;
             }
 
-            const altBadgeHtml = item.hasAlt ? `<span class="alt-badge">(대안 존재)</span>` : '';
+            const currentOpt = dayOptions[day];
+            const nextOpt = currentOpt === 'A' ? 'B' : 'A';
+            const altBadgeHtml = item.hasAlt ? `<button class="alt-badge alt-toggle-btn" data-day="${day}" data-nextopt="${nextOpt}">대안 보기 Click</button>` : '';
 
             li.innerHTML = `
                 <div class="handle">☰</div>
@@ -84,6 +73,14 @@ export function renderList() {
                 const d = e.target.getAttribute('data-day');
                 const idx = e.target.getAttribute('data-idx');
                 deleteItem(d, idx, renderList, updateMap);
+            });
+        });
+
+        listEl.querySelectorAll('.alt-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const targetDay = e.target.getAttribute('data-day');
+                const targetOpt = e.target.getAttribute('data-nextopt');
+                changeDayOption(targetDay, targetOpt, renderList, updateMap);
             });
         });
 
