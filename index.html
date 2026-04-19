@@ -69,37 +69,58 @@
     }
   </style>
   <script>
-    function scrollToSection(id, btnElement) {
+    function scrollToSection(id) {
         document.getElementById(id).scrollIntoView({behavior: 'smooth', block: 'start'});
-        // Update active state
-        document.querySelectorAll('header button').forEach(el => {
-            el.classList.remove('text-warm-red', 'opacity-100');
-            el.classList.add('text-text-dim', 'opacity-60');
-            el.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 0";
-        });
-        btnElement.classList.remove('text-text-dim', 'opacity-60');
-        btnElement.classList.add('text-warm-red', 'opacity-100');
-        btnElement.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
     }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const sections = ['safety', 'visibility', 'convenience', 'tips'].map(id => document.getElementById(id));
+        const navButtons = document.querySelectorAll('.nav-btn');
+
+        window.addEventListener('scroll', () => {
+            let current = 'safety'; // Default to first section
+            const offset = window.innerHeight * 0.4;
+            
+            sections.forEach(section => {
+                if (section) {
+                    const sectionTop = section.getBoundingClientRect().top;
+                    if (sectionTop <= offset) {
+                        current = section.id;
+                    }
+                }
+            });
+
+            navButtons.forEach(btn => {
+                if (btn.dataset.section === current) {
+                    btn.classList.remove('text-text-dim', 'opacity-60');
+                    btn.classList.add('text-warm-red', 'opacity-100');
+                    btn.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
+                } else {
+                    btn.classList.remove('text-warm-red', 'opacity-100');
+                    btn.classList.add('text-text-dim', 'opacity-60');
+                    btn.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 0";
+                }
+            });
+        });
+    });
   </script>
 </head>
 <body class="pb-16 pt-16">
 
-<!-- HEADER: Top Scrolling Navigation replacing old header and bottom nav -->
 <header class="fixed top-0 w-full z-50 bg-midnight/90 backdrop-blur-xl border-b border-white/10 flex justify-around items-center px-4 py-2 layout-nav shadow-lg">
-    <button class="flex flex-col items-center gap-1 text-warm-red opacity-100 transition-opacity p-2" onclick="scrollToSection('safety', this)">
+    <button data-section="safety" class="nav-btn flex flex-col items-center gap-1 text-warm-red opacity-100 transition-opacity p-2" onclick="scrollToSection('safety')">
         <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">security</span>
         <span class="font-condensed text-[9px] font-bold uppercase tracking-widest leading-none">주행안전</span>
     </button>
-    <button class="flex flex-col items-center gap-1 text-text-dim opacity-60 hover:opacity-100 transition-opacity p-2" onclick="scrollToSection('visibility', this)">
+    <button data-section="visibility" class="nav-btn flex flex-col items-center gap-1 text-text-dim opacity-60 hover:opacity-100 transition-opacity p-2" onclick="scrollToSection('visibility')">
         <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 0;">visibility</span>
         <span class="font-condensed text-[9px] font-bold uppercase tracking-widest leading-none">시계조절</span>
     </button>
-    <button class="flex flex-col items-center gap-1 text-text-dim opacity-60 hover:opacity-100 transition-opacity p-2" onclick="scrollToSection('convenience', this)">
+    <button data-section="convenience" class="nav-btn flex flex-col items-center gap-1 text-text-dim opacity-60 hover:opacity-100 transition-opacity p-2" onclick="scrollToSection('convenience')">
         <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 0;">route</span>
         <span class="font-condensed text-[9px] font-bold uppercase tracking-widest leading-none">편의안내</span>
     </button>
-    <button class="flex flex-col items-center gap-1 text-text-dim opacity-60 hover:opacity-100 transition-opacity p-2" onclick="scrollToSection('tips', this)">
+    <button data-section="tips" class="nav-btn flex flex-col items-center gap-1 text-text-dim opacity-60 hover:opacity-100 transition-opacity p-2" onclick="scrollToSection('tips')">
         <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 0;">stars</span>
         <span class="font-condensed text-[9px] font-bold uppercase tracking-widest leading-none">별도기능</span>
     </button>
